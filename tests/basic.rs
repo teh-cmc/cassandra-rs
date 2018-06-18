@@ -155,6 +155,69 @@ fn test_prepared_round_trip() {
     assert_eq!(input, output, "Input:  {:?}\noutput: {:?}", &input, &output);
 }
 
+/// Ensure that it's safe to drop a prepared statement even while results still point to it.
+/// Sadly this test is not strict enough to reproduce the problems we were seeing.
+#[test]
+fn test_bad_prepared() {
+    let session = help::create_test_session();
+    help::create_example_keyspace(&session);
+    create_basic_table(&session);
+
+    let input = Basic {
+        bln: true,
+        flt: 0.001f32,
+        dbl: 0.0002f64,
+        i32: 1,
+        i64: 2,
+    };
+    let mut output = Basic {
+        bln: false,
+        flt: 0f32,
+        dbl: 0f64,
+        i32: 0,
+        i64: 0,
+    };
+
+    println!("Basic insertions");
+    insert_into_basic(&session, "bad_prepared_test", &input).unwrap();
+
+    let future = {
+        let mut statement = {
+            println!("Preparing");
+            let query = "SELECT bln, dbl, flt, i32, i64 FROM examples.basic WHERE key = ?";
+            let prepared = session.prepare(query).unwrap().wait().unwrap();
+            prepared.bind()
+            // Now the prepared statement is dropped. It's not well-documented, but that is a very
+            // bad idea with the DataStax C/C++ driver, and causes use-after-free. This test ensures
+            // that this Rust driver has taken steps to protect against this.
+        };
+        statement.bind_string(0, "bad_prepared_test").unwrap();
+        // Now drop the statement. That's fine in DataStax C/C++-land, but it's a good extra
+        // stressor for the Rust library's test. The future alone should keep the necessary
+        // items alive, so that the result can be safely read.
+        session.execute(&statement)
+    };
+
+    for i in 0..100 {
+        println!("Try {}", i);
+        let st2 = session.prepare("SELECT keyspace_name FROM system_schema.keyspaces;").unwrap().wait().unwrap().bind();
+        let _ = session.execute(&st2);
+    }
+
+    let result = future.wait().unwrap();
+
+    println!("{:?}", result);
+    for row in result.iter() {
+        output.bln = row.get_by_name("bln").unwrap();
+        output.dbl = row.get_by_name("dbl").unwrap();
+        output.flt = row.get_by_name("flt").unwrap();
+        output.i32 = row.get_by_name("i32").unwrap();
+        output.i64 = row.get_by_name("i64").unwrap();
+    }
+    assert_eq!(input, output, "Input:  {:?}\noutput: {:?}", &input, &output);
+}
+
+
 #[test]
 fn test_null_retrieval() {
     let session = help::create_test_session();
