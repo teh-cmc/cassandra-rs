@@ -2,7 +2,7 @@
 description = "A Cassandra CQL driver, built on top of the DataStax C++ driver for performance and functionality."
 documentation = "https://docs.rs/cassandra-cpp"
 # no homepage yet
-repository = "https://github.com/Metaswitch/cassandra-rs"
+repository = "https://github.com/teh-cmc/cassandra-rs"
 readme = "README.md"
 keywords = [ "Cassandra", "binding", "CQL", "client", "database" ]
 categories = [ "api-bindings", "database", "external-ffi-bindings", "asynchronous" ]
@@ -13,14 +13,14 @@ authors = ["Tupshin Harper <tupshin@tupshin.com>", "Keith Wansbrough <Keith.Wans
 build = "build.rs"
 
 [badges]
-travis-ci = { repository = "Metaswitch/cassandra-rs" }
+travis-ci = { repository = "teh-cmc/cassandra-rs" }
 
 [dependencies]
 clippy = {version = "0.0", optional = true}
 slog = "2"
-cassandra-cpp-sys = "0.12"
 decimal = "1"
 time = "0.1"
 uuid = "0.5"
 error-chain = "0.12.1"
 futures = "0.1"
+cassandra-cpp-sys = { git = "https://github.com/teh-cmc/cassandra-sys-rs.git", rev = "91a4475a9361ac98aaaa46fde7efe24de481948f" }
